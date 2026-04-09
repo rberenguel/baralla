@@ -19,6 +19,7 @@ For single-card deal (the draw operation common to many games):
 ```
 
 **What needs doing:**
+
 - Detect partial stack drags in `onPointerUp` during recording
 - Auto-assign a stack ID (e.g. `stack-1`, `stack-2`, or user-named)
 - Track card count: N = dragTargets.length

@@ -1,14 +1,15 @@
 const CACHE_NAME = "baralla-v0.1.0";
 const CACHE_FILES = [
-  './app.js',
-  './fonts/phosphor/Phosphor-Light.woff2',
-  './fonts/phosphor/phosphor.css',
-  './icon.png',
-  './index.html',
-  './lib/marked.js',
-  './manifest.json',
-  './setup.js',
-  './style.css',
+  "./README.md",
+  "./app.js",
+  "./fonts/phosphor/Phosphor-Light.woff2",
+  "./fonts/phosphor/phosphor.css",
+  "./icon.png",
+  "./index.html",
+  "./lib/marked.js",
+  "./manifest.json",
+  "./setup.js",
+  "./style.css",
 ];
 
 self.addEventListener("install", (event) => {

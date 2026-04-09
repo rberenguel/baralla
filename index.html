@@ -1,82 +1,154 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <title>Baralla</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="fonts/phosphor/phosphor.css">
-</head>
-<body>
-
-<div id="app">
-    <div id="table"></div>
-</div>
-
-<div id="radial-menu"></div>
-
-<div id="update-banner" class="hidden">
-    Update available — <a href="#" id="update-link">reload</a>
-</div>
-
-<div id="setup-modal" class="setup-modal hidden">
-  <div class="setup-modal-box">
-    <div class="setup-modal-header">
-      <span class="setup-modal-title">Setup</span>
-      <button id="setup-modal-close">✕</button>
+    <link rel="icon" href="icon.png" type="image/png" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="fonts/phosphor/phosphor.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="table"></div>
     </div>
-    <textarea id="setup-textarea" spellcheck="false" placeholder="Paste or type a setup..."></textarea>
-    <div class="setup-modal-actions">
-      <button id="setup-apply-btn">Apply</button>
-      <button id="setup-copy-btn">Copy</button>
-    </div>
-  </div>
-</div>
 
-<div id="error-modal" class="setup-modal hidden">
-  <div class="setup-modal-box error-box">
-    <div class="setup-modal-header">
-      <span class="setup-modal-title">Game Not Found</span>
-      <button onclick="document.getElementById('error-modal').classList.add('hidden')">✕</button>
-    </div>
-    <div class="error-message">
-      Could not find the requested game setup. Check the URL or paste the setup manually.
-    </div>
-    <div class="setup-modal-actions">
-      <button onclick="document.getElementById('error-modal').classList.add('hidden')">Close</button>
-    </div>
-  </div>
-</div>
+    <div id="radial-menu"></div>
 
-<script src="lib/marked.js"></script>
-<script type="module" src="app.js"></script>
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(registration => {
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        if (!newWorker) return;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-                                document.getElementById('update-banner').classList.remove('hidden');
-                            }
-                        });
-                    });
-                })
-                .catch(err => console.error('SW registration failed:', err));
+    <div id="launcher-modal" class="modal-overlay">
+      <div class="modal-content launcher-content">
+        <button class="modal-close" id="launcher-close">&times;</button>
+        <div class="modal-header">
+          <img src="icon.png" alt="Baralla" class="modal-icon" />
+          <div class="modal-title-container">
+            <h2>Baralla</h2>
+            <span class="version-tag">v0.1.0</span>
+          </div>
+        </div>
+        <div class="modal-text">
+          <p>
+            <strong>Baralla</strong> is a card sandbox for exploring deck
+            setups. Drag, stack, and flip cards on a virtual green felt table.
+            "Baralla" is Catalan for "deck".
+          </p>
+
+          <div class="launcher-actions">
+            <div class="control-group">
+              <label>Select a Game</label>
+              <select id="game-selector">
+                <option value="">— Blank Canvas —</option>
+                <option value="scoundrel">Scoundrel</option>
+                <option value="club-fight">Club Fight</option>
+              </select>
+            </div>
+            <button id="launch-btn" class="primary-btn">Launch Game</button>
+          </div>
+
+          <div class="about-footer">
+            <p>
+              Recorded setups can be shared via markdown. Documentation:
+              <a href="README.md" target="_blank">README.md</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button
+      id="menu-btn"
+      class="floating-btn ph-light ph-list"
+      title="Open Menu"
+    ></button>
+
+    <div id="update-banner" class="hidden">
+      Update available — <a href="#" id="update-link">reload</a>
+    </div>
+
+    <div id="setup-modal" class="setup-modal hidden">
+      <div class="setup-modal-box">
+        <div class="setup-modal-header">
+          <span class="setup-modal-title">Setup</span>
+          <button id="setup-modal-close">✕</button>
+        </div>
+        <textarea
+          id="setup-textarea"
+          spellcheck="false"
+          placeholder="Paste or type a setup..."
+        ></textarea>
+        <div class="setup-modal-actions">
+          <button id="setup-apply-btn">Apply</button>
+          <button id="setup-copy-btn">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="error-modal" class="setup-modal hidden">
+      <div class="setup-modal-box error-box">
+        <div class="setup-modal-header">
+          <span class="setup-modal-title">Game Not Found</span>
+          <button
+            onclick="document.getElementById('error-modal').classList.add('hidden')"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="error-message">
+          Could not find the requested game setup. Check the URL or paste the
+          setup manually.
+        </div>
+        <div class="setup-modal-actions">
+          <button
+            onclick="document.getElementById('error-modal').classList.add('hidden')"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="lib/marked.js"></script>
+    <script type="module" src="app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then((registration) => {
+              registration.addEventListener("updatefound", () => {
+                const newWorker = registration.installing;
+                if (!newWorker) return;
+                newWorker.addEventListener("statechange", () => {
+                  if (
+                    newWorker.state === "activated" &&
+                    navigator.serviceWorker.controller
+                  ) {
+                    document
+                      .getElementById("update-banner")
+                      .classList.remove("hidden");
+                  }
+                });
+              });
+            })
+            .catch((err) => console.error("SW registration failed:", err));
         });
 
-        document.getElementById('update-link').addEventListener('click', e => {
+        document
+          .getElementById("update-link")
+          .addEventListener("click", (e) => {
             e.preventDefault();
             window.location.reload();
-        });
-    }
-</script>
-</body>
+          });
+      }
+    </script>
+  </body>
 </html>
