@@ -402,24 +402,24 @@ class App {
 
         if (type === 'stack') {
             actions = [
-                { icon: '🔀', handler: () => this.actionStackShuffle(this.radialMenuData) },
-                { icon: '🗘', handler: () => this.actionStackFlip(this.radialMenuData) },
-                { icon: '⇩', handler: () => this.actionToBottom(this.radialMenuData) },
-                { icon: '♠', class: 'black-suit', handler: () => this.extractSuitFromStack('♠', this.radialMenuData) },
-                { icon: '♥', class: 'red-suit', handler: () => this.extractSuitFromStack('♥', this.radialMenuData) },
-                { icon: '♣', class: 'black-suit', handler: () => this.extractSuitFromStack('♣', this.radialMenuData) },
-                { icon: '♦', class: 'red-suit', handler: () => this.extractSuitFromStack('♦', this.radialMenuData) },
+                { icon: 'ph-shuffle', handler: () => this.actionStackShuffle(this.radialMenuData) },
+                { icon: 'ph-device-rotate', handler: () => this.actionStackFlip(this.radialMenuData) },
+                { icon: 'ph-tray-arrow-down', handler: () => this.actionToBottom(this.radialMenuData) },
+                { icon: 'ph-spade', class: 'black-suit', handler: () => this.extractSuitFromStack('♠', this.radialMenuData) },
+                { icon: 'ph-heart', class: 'red-suit', handler: () => this.extractSuitFromStack('♥', this.radialMenuData) },
+                { icon: 'ph-club', class: 'black-suit', handler: () => this.extractSuitFromStack('♣', this.radialMenuData) },
+                { icon: 'ph-diamond', class: 'red-suit', handler: () => this.extractSuitFromStack('♦', this.radialMenuData) },
             ];
         } else if (type === 'table') {
             actions = [
-                { icon: '📥', handler: () => this.actionGatherAll() },
-                { icon: '🎲', handler: () => this.addCounter(clientX, clientY) },
-                { icon: '📝', handler: () => this.addNote(clientX, clientY) },
-                { icon: '🔲', handler: () => this.addPhantom(clientX, clientY) },
+                { icon: 'ph-arrows-in', handler: () => this.actionGatherAll() },
+                { icon: 'ph-dice-five', handler: () => this.addCounter(clientX, clientY) },
+                { icon: 'ph-note-pencil', handler: () => this.addNote(clientX, clientY) },
+                { icon: 'ph-bounding-box', handler: () => this.addPhantom(clientX, clientY) },
             ];
         } else if (type === 'tool') {
             actions = [
-                { icon: '🗑️', handler: () => this.actionDeleteTool(this.radialMenuData) }
+                { icon: 'ph-trash', handler: () => this.actionDeleteTool(this.radialMenuData) }
             ];
         }
 
@@ -428,7 +428,7 @@ class App {
         actions.forEach((act, i) => {
             const el = document.createElement('div');
             el.className = 'radial-item ' + (act.class || '');
-            el.innerText = act.icon;
+            el.innerHTML = `<i class="ph-light ${act.icon}"></i>`;
 
             let angle = 0;
             if (actions.length > 1) {
@@ -540,8 +540,14 @@ class App {
     }
 
     actionGatherAll() {
-        let cxL = this.snap((window.innerWidth/2 - this.panX) / this.zoomLevel - 35);
-        let cyL = this.snap((window.innerHeight/2 - this.panY) / this.zoomLevel - 50);
+        // Reset pan and zoom to initial state so the deck is always centered and visible
+        this.panX = window.innerWidth / 2;
+        this.panY = window.innerHeight / 2;
+        this.zoomLevel = 1;
+        this.updateTransform();
+
+        let cxL = this.snap(-35);
+        let cyL = this.snap(-50);
 
         let cards = this.items.filter(i => i.type === 'card');
         cards.forEach(c => {

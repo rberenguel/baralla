@@ -160,6 +160,11 @@ body {
     transition: transform 0.1s;
 }
 .radial-item:active { transform: scale(1.15); }
+.radial-item i {
+    font-size: 22px;
+    line-height: 1;
+    pointer-events: none;
+}
 .radial-item.red-suit { color: #d90429; }
 .radial-item.black-suit { color: #2b2d42; }
 
