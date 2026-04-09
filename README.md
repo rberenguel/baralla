@@ -133,6 +133,13 @@ Long-press on empty table → **load** button (folder icon). Paste or type a set
 
 ---
 
-## Sharing *(future)*
+## Sharing
 
+### URL Parameters
+You can auto-load a game setup by appending its name as a query parameter:
+`index.html?scoundrel`
+
+This will attempt to fetch the setup from `games/scoundrel.md`. If the file is not found, a "Game Not Found" modal will appear.
+
+### Encoding *(future)*
 Setups will eventually be shareable as base64-encoded URLs, so you can send a game configuration as a link.

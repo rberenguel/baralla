@@ -197,7 +197,8 @@ body {
 }
 
 .note-widget {
-    width: 300px;
+    width: 450px;
+    max-width: 90vw;
 }
 .note-collapsed .note-preview,
 .note-collapsed .note-source {
@@ -207,26 +208,73 @@ body {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 10px;
+    font-size: 14px;
     color: #888;
-    padding: 0 0 0 4px;
+    padding: 2px 6px;
     line-height: 1;
     flex-shrink: 0;
+    transition: color 0.2s, transform 0.2s;
+}
+.note-collapse-btn:hover {
+    color: #444;
+    transform: scale(1.2);
 }
 .drag-handle {
     justify-content: space-between;
+    padding: 4px 8px;
+    background: #f0f0f0;
 }
 .collapsible-heading {
     cursor: pointer;
     user-select: none;
+    position: relative;
+    padding-left: 20px;
+    transition: background 0.2s;
+    border-radius: 4px;
+}
+.collapsible-heading:hover {
+    background: rgba(0,0,0,0.05);
 }
 .collapsible-heading::before {
-    content: '▾ ';
-    font-size: 9px;
-    opacity: 0.5;
+    content: '▾';
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.7;
+    transition: transform 0.2s;
 }
 .collapsible-heading.heading-collapsed::before {
-    content: '▸ ';
+    transform: translateY(-50%) rotate(-90deg);
+}
+
+.note-preview {
+    padding: 12px;
+    background: #fff;
+}
+
+/* Error Modal Specifics */
+.error-box {
+    border: 2px solid #ff4d4d;
+}
+.error-message {
+    color: #ffcccc;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 10px 0;
+}
+
+/* Card Suit Styling */
+.card .ph-light {
+    font-size: inherit;
+    vertical-align: middle;
+}
+.card-corner .ph-light {
+    margin: 0 2px;
+}
+.card-center .ph-light {
+    font-size: 48px;
 }
 .note-preview {
     padding: 4px 2px;
@@ -257,6 +305,33 @@ body {
 .note-empty {
     color: #aaa; font-style: italic; font-size: 12px;
 }
+
+/* Tables */
+.note-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+    border: 1px solid #ddd;
+}
+.note-preview th {
+    background: #f8f9fa;
+    font-weight: 700;
+    text-align: left;
+    padding: 8px;
+    border-bottom: 2px solid #ddd;
+}
+.note-preview td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+}
+.note-preview tr:last-child td {
+    border-bottom: none;
+}
+.note-preview tr:nth-child(even) {
+    background: #fcfcfc;
+}
+
 .note-source {
     display: none;
     width: 100%;

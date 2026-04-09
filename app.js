@@ -3,6 +3,7 @@ import { parseSetup, applySetup, serializeSetup } from './setup.js';
 const SUITS = ['♠', '♥', '♦', '♣'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const SUIT_NAMES = { '♠': 'spades', '♥': 'hearts', '♣': 'clubs', '♦': 'diamonds' };
+const SUIT_ICONS = { '♠': 'ph-spade', '♥': 'ph-heart', '♣': 'ph-club', '♦': 'ph-diamond' };
 
 class App {
     constructor() {
@@ -43,6 +44,8 @@ class App {
         this.setupEvents();
         this.updateTransform();
         this.initSetupModal();
+
+        this.checkUrlForGame();
     }
 
     snap(value) {
@@ -58,12 +61,13 @@ class App {
 
                 let el = document.createElement('div');
                 el.className = `card face-down ${isRed ? 'red' : 'black'}`;
+                let icon = SUIT_ICONS[suit];
                 el.innerHTML = `
                     <div class="card-back"></div>
                     <div class="card-face">
-                        <div class="card-corner">${suit} ${rank}</div>
+                        <div class="card-corner"><i class="ph-light ${icon}"></i> ${rank}</div>
                         <div class="card-center">${rank}</div>
-                        <div class="card-corner bottom">${rank} ${suit}</div>
+                        <div class="card-corner bottom">${rank} <i class="ph-light ${icon}"></i></div>
                     </div>
                 `;
 
@@ -868,6 +872,26 @@ class App {
         const markdown = serializeSetup('', resolvedLog);
         this.openSetupModal('save', markdown);
         if (navigator.vibrate) navigator.vibrate([20, 20]);
+    }
+
+    checkUrlForGame() {
+        // Look for ?game-name
+        const query = window.location.search.substring(1).split('&')[0];
+        if (query && /^[a-zA-Z0-9_-]+$/.test(query)) {
+            this.fetchGame(query);
+        }
+    }
+
+    async fetchGame(name) {
+        try {
+            const resp = await fetch(`games/${name}.md`);
+            if (!resp.ok) throw new Error('Not found');
+            const text = await resp.text();
+            this.loadSetup(text);
+        } catch (err) {
+            console.error('Failed to fetch game:', err);
+            document.getElementById('error-modal').classList.remove('hidden');
+        }
     }
 
     // --- RECORDING HELPERS ---
