@@ -1,4 +1,4 @@
-# Baralla
+# <img src="icon.png" alt="Baralla Icon" width="32" height="32" align="center"> Baralla
 
 A card sandbox — drag, stack, fan, shuffle, and flip a standard 52-card deck on a virtual felt table. Supports pinch-to-zoom and pan. "Baralla" is Catalan for "deck".
 
