@@ -1,0 +1,238 @@
+:root {
+    --felt: #1a472a;
+    --card-w: 70px;
+    --card-h: 100px;
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--felt);
+    background-image: radial-gradient(circle, #235c36 0%, #11301c 100%);
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    touch-action: none;
+}
+
+#app {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+}
+
+#table {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    transform-origin: 0 0;
+    will-change: transform;
+}
+
+/* --- CARDS --- */
+.card {
+    position: absolute;
+    width: var(--card-w);
+    height: var(--card-h);
+    border-radius: 6px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    transform-origin: center center;
+    cursor: grab;
+    transform-style: preserve-3d;
+    transition: box-shadow 0.1s, border 0.1s;
+}
+
+.card.dragging {
+    box-shadow: 0 15px 25px rgba(0,0,0,0.6);
+    z-index: 99999 !important;
+    cursor: grabbing;
+}
+
+/* Slide to Bottom Affordance */
+.card.preview-bottom::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 6px;
+    z-index: 10;
+    pointer-events: none;
+}
+.card.preview-bottom::before {
+    content: '⇩';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px;
+    color: white;
+    z-index: 11;
+    pointer-events: none;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+}
+
+.card-face, .card-back {
+    position: absolute;
+    width: 100%; height: 100%;
+    border-radius: 6px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.card-back {
+    background-color: #003366;
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.1) 4px, rgba(255,255,255,0.1) 8px);
+    transform: rotateY(180deg);
+}
+
+.card-face {
+    background: white;
+    flex-direction: column;
+}
+
+.card.face-down {
+    transform: rotateY(180deg);
+}
+
+/* Card Graphics */
+.card.red { color: #d90429; }
+.card.black { color: #2b2d42; }
+
+.card-corner {
+    position: absolute;
+    top: 4px; left: 4px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1;
+}
+
+.card-corner.bottom {
+    top: auto; bottom: 4px; left: auto; right: 4px;
+    transform: rotate(180deg);
+}
+
+.card-center {
+    font-size: 40px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1.1;
+}
+
+/* --- RADIAL MENU --- */
+#radial-menu {
+    position: fixed;
+    width: 180px; height: 180px;
+    margin-left: -90px; margin-top: -90px;
+    border-radius: 50%;
+    background: rgba(30, 40, 35, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.2);
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.2s, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+    z-index: 1000000;
+}
+#radial-menu.show {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+.radial-item {
+    position: absolute;
+    width: 44px; height: 44px;
+    margin-left: -22px; margin-top: -22px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transition: transform 0.1s;
+}
+.radial-item:active { transform: scale(1.15); }
+.radial-item.red-suit { color: #d90429; }
+.radial-item.black-suit { color: #2b2d42; }
+
+/* --- COUNTERS & NOTES --- */
+.tool-item {
+    position: absolute;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.counter-widget {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: bold;
+}
+.counter-btn {
+    width: 30px; height: 30px;
+    border-radius: 15px;
+    border: none;
+    background: #eee;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.note-widget {
+    width: 150px;
+}
+.note-widget textarea {
+    width: 100%;
+    height: 80px;
+    border: none;
+    resize: none;
+    background: #fff9c4;
+    padding: 5px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+}
+.drag-handle {
+    background: #ddd;
+    height: 16px;
+    border-radius: 4px 4px 0 0;
+    cursor: grab;
+    margin: -8px -8px 4px -8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #666;
+}
+
+/* --- PHANTOM CARD --- */
+.phantom-card {
+    position: absolute;
+    width: var(--card-w);
+    height: var(--card-h);
+    border: 2px dashed rgba(255, 255, 255, 0.4);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: grab;
+    box-sizing: border-box;
+    transition: background 0.1s;
+}
+
+.phantom-card.dragging {
+    background: rgba(255, 255, 255, 0.15);
+    z-index: 99999 !important;
+    cursor: grabbing;
+}
