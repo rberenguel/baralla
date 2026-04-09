@@ -17,6 +17,21 @@
 
 <div id="radial-menu"></div>
 
+<div id="setup-modal" class="setup-modal hidden">
+  <div class="setup-modal-box">
+    <div class="setup-modal-header">
+      <span class="setup-modal-title">Setup</span>
+      <button id="setup-modal-close">✕</button>
+    </div>
+    <textarea id="setup-textarea" spellcheck="false" placeholder="Paste or type a setup..."></textarea>
+    <div class="setup-modal-actions">
+      <button id="setup-apply-btn">Apply</button>
+      <button id="setup-copy-btn">Copy</button>
+    </div>
+  </div>
+</div>
+
+<script src="lib/marked.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

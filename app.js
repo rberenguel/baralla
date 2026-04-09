@@ -1,5 +1,8 @@
+import { parseSetup, applySetup, serializeSetup } from './setup.js';
+
 const SUITS = ['♠', '♥', '♦', '♣'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const SUIT_NAMES = { '♠': 'spades', '♥': 'hearts', '♣': 'clubs', '♦': 'diamonds' };
 
 class App {
     constructor() {
@@ -31,9 +34,15 @@ class App {
         this.radialMenuData = null;
         this.radialMenuType = null;
 
+        // Recording state
+        this.recording = false;
+        this.recordingLog = [];
+        this.recordingStacks = {}; // { main: Set<cardRef>, [id]: Set<cardRef> }
+
         this.initDeck();
         this.setupEvents();
         this.updateTransform();
+        this.initSetupModal();
     }
 
     snap(value) {
@@ -381,6 +390,23 @@ class App {
             this.items.forEach(i => i.el && i.el.classList.remove('preview-bottom'));
 
             this.applyItemTransforms();
+
+            // Record full-stack move during recording
+            if (this.recording && leadItem.type === 'card' && this.dragMode !== 'rotate' && !openedMenu) {
+                const draggedSet = new Set(this.dragTargets);
+                for (const [id, stackSet] of Object.entries(this.recordingStacks)) {
+                    if (this._setsEqual(draggedSet, stackSet)) {
+                        const rep = this.dragTargets[0];
+                        this.recordingLog.push({
+                            type: 'move',
+                            id: id === 'main' ? null : id,
+                            x: rep.x,
+                            y: rep.y,
+                        });
+                        break;
+                    }
+                }
+            }
         }
 
         this.stackLifted = false;
@@ -409,13 +435,20 @@ class App {
                 { icon: 'ph-heart', class: 'red-suit', handler: () => this.extractSuitFromStack('♥', this.radialMenuData) },
                 { icon: 'ph-club', class: 'black-suit', handler: () => this.extractSuitFromStack('♣', this.radialMenuData) },
                 { icon: 'ph-diamond', class: 'red-suit', handler: () => this.extractSuitFromStack('♦', this.radialMenuData) },
+                { icon: 'ph-crown', handler: () => this.addJokerToStack(this.radialMenuData) },
             ];
         } else if (type === 'table') {
             actions = [
-                { icon: 'ph-arrows-in', handler: () => this.actionGatherAll() },
-                { icon: 'ph-dice-five', handler: () => this.addCounter(clientX, clientY) },
+                { icon: 'ph-arrows-in',   handler: () => this.actionGatherAll() },
+                { icon: 'ph-dice-five',   handler: () => this.addCounter(clientX, clientY) },
                 { icon: 'ph-note-pencil', handler: () => this.addNote(clientX, clientY) },
-                { icon: 'ph-bounding-box', handler: () => this.addPhantom(clientX, clientY) },
+                { icon: 'ph-bounding-box',handler: () => this.addPhantom(clientX, clientY) },
+                { icon: 'ph-folder-open', handler: () => this.openSetupModal('load') },
+                {
+                    icon: this.recording ? 'ph-stop-circle' : 'ph-record',
+                    class: this.recording ? 'recording' : '',
+                    handler: () => this.recording ? this.stopRecording() : this.startRecording(),
+                },
             ];
         } else if (type === 'tool') {
             actions = [
@@ -474,6 +507,10 @@ class App {
 
     actionStackFlip(stack) {
         if (!stack || stack.length === 0) return;
+        if (this.recording) {
+            const id = this._stackIdForCards(stack);
+            this.recordingLog.push({ type: 'flip', id });
+        }
         stack.reverse().forEach((c) => {
             c.z = ++this.maxZ;
             c.isFaceUp = !c.isFaceUp;
@@ -490,6 +527,16 @@ class App {
     extractSuitFromStack(targetSuit, stack) {
         let extCards = stack.filter(c => c.suit === targetSuit);
         if (extCards.length === 0) return;
+        if (this.recording) {
+            const suitName = SUIT_NAMES[targetSuit] || targetSuit;
+            const id = this._autoStackId(suitName);
+            // Update registry: remove from main, create new stack
+            if (this.recordingStacks.main) {
+                extCards.forEach(c => this.recordingStacks.main.delete(c));
+            }
+            this.recordingStacks[id] = new Set(extCards);
+            this.recordingLog.push({ type: 'split', suit: targetSuit, id });
+        }
 
         let leadItem = stack[0];
         let newX = this.snap(leadItem.x + 90);
@@ -506,8 +553,50 @@ class App {
         this.applyItemTransforms();
     }
 
+    addJokerToStack(stack) {
+        if (!stack || stack.length === 0) return;
+        const leadItem = stack[stack.length - 1]; // place on top
+
+        const el = document.createElement('div');
+        el.className = 'card joker';
+        el.innerHTML = `
+            <div class="card-back"></div>
+            <div class="card-face">
+                <div class="card-corner"><i class="ph-light ph-crown"></i> JKR</div>
+                <div class="card-center"><i class="ph-light ph-crown"></i></div>
+                <div class="card-corner bottom">JKR <i class="ph-light ph-crown"></i></div>
+            </div>
+        `;
+        this.table.appendChild(el);
+
+        const jokerObj = {
+            id: `joker-${Date.now()}`,
+            type: 'card', el, suit: null, rank: 'JKR', isJoker: true,
+            x: leadItem.x, y: leadItem.y, rot: leadItem.rot,
+            z: ++this.maxZ, isFaceUp: false,
+        };
+        this.items.push(jokerObj);
+
+        if (this.recording) {
+            const id = this._stackIdForCards(stack);
+            this.recordingLog.push({ type: 'joker', id });
+            // Add joker to registry so future ops can find the full stack
+            const regKey = id === null ? 'main' : id;
+            if (this.recordingStacks[regKey]) {
+                this.recordingStacks[regKey].add(jokerObj);
+            }
+        }
+
+        if (navigator.vibrate) navigator.vibrate(20);
+        this.applyItemTransforms();
+    }
+
     actionStackShuffle(stack) {
         if (!stack || stack.length <= 1) return;
+        if (this.recording) {
+            const id = this._stackIdForCards(stack);
+            this.recordingLog.push({ type: 'shuffle', id });
+        }
 
         stack.forEach(c => {
             c._tempTransform = true;
@@ -568,16 +657,112 @@ class App {
             </div>
         `;
         this.spawnTool(el, 'counter', clientX, clientY);
+        if (this.recording) {
+            // Store reference — position resolved at stop time to capture any drag
+            this.recordingLog.push({ type: 'counter', _item: this.items[this.items.length - 1] });
+        }
     }
 
     addNote(clientX, clientY) {
-        let el = document.createElement('div');
-        el.className = 'tool-item note-widget';
-        el.innerHTML = `
-            <div class="drag-handle">≡ Note</div>
-            <textarea placeholder="Rules or notes..."></textarea>
-        `;
+        const el = this._makeNoteWidget('');
         this.spawnTool(el, 'note', clientX, clientY);
+        if (this.recording) {
+            // Store reference — text and position resolved at stop time
+            this.recordingLog.push({ type: 'note', _item: this.items[this.items.length - 1] });
+        }
+    }
+
+    _makeNoteWidget(initialText, label = 'Note') {
+        const el = document.createElement('div');
+        el.className = 'tool-item note-widget';
+
+        // --- Drag handle with collapse toggle ---
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle';
+
+        const handleLabel = document.createElement('span');
+        handleLabel.textContent = `≡ ${label}`;
+
+        const collapseBtn = document.createElement('button');
+        collapseBtn.className = 'note-collapse-btn';
+        collapseBtn.title = 'Collapse / expand';
+        collapseBtn.textContent = '▾';  // solid down triangle
+        collapseBtn.addEventListener('pointerdown', e => {
+            e.stopPropagation();
+            el.classList.toggle('note-collapsed');
+            collapseBtn.textContent = el.classList.contains('note-collapsed') ? '▸' : '▾';
+        });
+
+        handle.appendChild(handleLabel);
+        handle.appendChild(collapseBtn);
+
+        // --- Rendered markdown view ---
+        const preview = document.createElement('div');
+        preview.className = 'note-preview';
+
+        // --- Raw source textarea (hidden while previewing) ---
+        const textarea = document.createElement('textarea');
+        textarea.className = 'note-source';
+        textarea.placeholder = 'Write notes (markdown supported)…';
+        textarea.value = initialText;
+
+        const render = () => {
+            const md = textarea.value.trim();
+            if (md) {
+                preview.innerHTML = window.marked.parse(md);
+                // Per-heading collapse: clicking a heading toggles its following content
+                Array.from(preview.children).forEach(child => {
+                    if (/^H[123]$/.test(child.tagName) && !child._collapseWired) {
+                        child._collapseWired = true;
+                        child.classList.add('collapsible-heading');
+                        child.addEventListener('click', () => {
+                            child.classList.toggle('heading-collapsed');
+                            const collapsed = child.classList.contains('heading-collapsed');
+                            let sib = child.nextElementSibling;
+                            while (sib && !/^H[123]$/.test(sib.tagName)) {
+                                sib.style.display = collapsed ? 'none' : '';
+                                sib = sib.nextElementSibling;
+                            }
+                        });
+                    }
+                });
+            } else {
+                preview.innerHTML = '<span class="note-empty">Double-tap to edit…</span>';
+            }
+        };
+
+        render();
+
+        const startEdit = (e) => {
+            e.stopPropagation();
+            textarea.style.display = 'block';
+            preview.style.display = 'none';
+            textarea.focus();
+        };
+
+        preview.addEventListener('dblclick', startEdit);
+        preview.addEventListener('touchend', (() => {
+            let last = 0;
+            return (e) => {
+                const now = Date.now();
+                if (now - last < 350) startEdit(e);
+                last = now;
+            };
+        })());
+
+        textarea.addEventListener('blur', () => {
+            render();
+            textarea.style.display = 'none';
+            preview.style.display = '';
+        });
+
+        textarea.addEventListener('pointerdown', e => e.stopPropagation());
+
+        el.appendChild(handle);
+        el.appendChild(preview);
+        el.appendChild(textarea);
+
+        return el;
     }
 
     addPhantom(clientX, clientY) {
@@ -589,6 +774,10 @@ class App {
         let item = this.items[this.items.length - 1];
         item.z = 10;
         this.applyItemTransforms();
+        if (this.recording) {
+            // Store reference — position resolved at stop time to capture any drag
+            this.recordingLog.push({ type: 'placeholder', _item: item });
+        }
     }
 
     spawnTool(el, type, clientX, clientY) {
@@ -604,6 +793,104 @@ class App {
         };
         this.items.push(item);
         this.applyItemTransforms();
+    }
+    // --- SETUP MODAL ---
+
+    initSetupModal() {
+        this._setupModal    = document.getElementById('setup-modal');
+        this._setupTextarea = document.getElementById('setup-textarea');
+        this._setupTitle    = document.querySelector('.setup-modal-title');
+
+        document.getElementById('setup-modal-close').addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            this.closeSetupModal();
+        });
+        document.getElementById('setup-apply-btn').addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            this.loadSetup(this._setupTextarea.value);
+            this.closeSetupModal();
+        });
+        document.getElementById('setup-copy-btn').addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            const btn = document.getElementById('setup-copy-btn');
+            navigator.clipboard.writeText(this._setupTextarea.value).then(() => {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+            });
+        });
+        // Prevent table pointer events from eating textarea interaction
+        this._setupModal.addEventListener('pointerdown', (e) => e.stopPropagation());
+    }
+
+    openSetupModal(mode = 'load', content = '') {
+        this._setupTitle.textContent = mode === 'save' ? 'Recorded Setup' : 'Setup';
+        this._setupTextarea.value = content;
+        this._setupModal.classList.remove('hidden');
+        // Focus the textarea so the keyboard appears on mobile
+        setTimeout(() => this._setupTextarea.focus(), 50);
+    }
+
+    closeSetupModal() {
+        this._setupModal.classList.add('hidden');
+    }
+
+    loadSetup(markdown) {
+        if (!markdown.trim()) return;
+        applySetup(this, parseSetup(markdown));
+    }
+
+    // --- RECORDING ---
+
+    startRecording() {
+        this.recording = true;
+        this.recordingLog = [];
+        // Snapshot all current cards into the main stack registry
+        this.recordingStacks = { main: new Set(this.items.filter(i => i.type === 'card')) };
+        if (navigator.vibrate) navigator.vibrate(30);
+    }
+
+    stopRecording() {
+        this.recording = false;
+        // Resolve final positions and content from live item references
+        const resolvedLog = this.recordingLog.map(entry => {
+            if (entry._item) {
+                const resolved = { type: entry.type, x: entry._item.x, y: entry._item.y };
+                if (entry.type === 'note') {
+                    const ta = entry._item.el.querySelector('.note-source');
+                    resolved.text = ta ? ta.value : '';
+                }
+                return resolved;
+            }
+            return entry;
+        });
+        this.recordingLog = [];
+        const markdown = serializeSetup('', resolvedLog);
+        this.openSetupModal('save', markdown);
+        if (navigator.vibrate) navigator.vibrate([20, 20]);
+    }
+
+    // --- RECORDING HELPERS ---
+
+    _autoStackId(baseName) {
+        if (!this.recordingStacks[baseName]) return baseName;
+        let n = 2;
+        while (this.recordingStacks[`${baseName}-${n}`]) n++;
+        return `${baseName}-${n}`;
+    }
+
+    _stackIdForCards(cards) {
+        const s = new Set(cards);
+        for (const [id, stackSet] of Object.entries(this.recordingStacks)) {
+            if (this._setsEqual(s, stackSet)) return id === 'main' ? null : id;
+        }
+        return null; // default: main deck
+    }
+
+    _setsEqual(a, b) {
+        if (a.size !== b.size) return false;
+        for (const item of a) if (!b.has(item)) return false;
+        return true;
     }
 }
 
