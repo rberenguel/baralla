@@ -106,6 +106,11 @@ body {
 .card.red { color: #d90429; }
 .card.black { color: #2b2d42; }
 
+/* Multicolor Mode */
+.multicolor-mode .card.suit-clubs { color: #1e88e5; }
+.multicolor-mode .card.suit-diamonds { color: #f39c12; }
+/* Spades and Hearts inherit from .black and .red */
+
 .card-corner {
     position: absolute;
     top: 4px; left: 4px;
@@ -289,9 +294,9 @@ body {
 }
 .note-preview p { margin: 0 0 6px; }
 .note-preview p:last-child { margin-bottom: 0; }
-.note-preview h1,.note-preview h2,.note-preview h3 {
-    margin: 4px 0; font-size: 14px; font-weight: 700;
-}
+.note-preview h1 { margin: 12px 0 6px; font-size: 18px; font-weight: 800; border-bottom: 1px solid #eee; padding-bottom: 2px; }
+.note-preview h2 { margin: 10px 0 5px; font-size: 16px; font-weight: 700; }
+.note-preview h3 { margin: 8px 0 4px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: #555; }
 .note-preview ul,.note-preview ol {
     margin: 4px 0; padding-left: 16px;
 }
@@ -313,6 +318,7 @@ body {
     margin: 12px 0;
     font-size: 12px;
     border: 1px solid #ddd;
+    table-layout: fixed;
 }
 .note-preview th {
     background: #f8f9fa;
@@ -322,7 +328,7 @@ body {
     border-bottom: 2px solid #ddd;
 }
 .note-preview td {
-    padding: 6px 8px;
+    padding: 2px 4px;
     border-bottom: 1px solid #eee;
 }
 .note-preview tr:last-child td {
@@ -371,6 +377,19 @@ body {
     cursor: grab;
     box-sizing: border-box;
     transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.phantom-label {
+    color: rgba(255,255,255,0.3);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-align: center;
+    padding: 10px;
+    pointer-events: none;
 }
 
 .phantom-card.dragging {
@@ -494,4 +513,30 @@ body {
 @keyframes recording-pulse {
     0%, 100% { box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
     50%       { box-shadow: 0 4px 22px rgba(210, 35, 35, 0.7); }
+}
+
+/* --- PWA UPDATE BANNER --- */
+#update-banner {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #333;
+    color: white;
+    text-align: center;
+    padding: 12px;
+    z-index: 9999999;
+    font-size: 14px;
+    box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
+    border-top: 1px solid #444;
+}
+#update-banner a {
+    color: #4facfe;
+    font-weight: bold;
+    text-decoration: none;
+    margin-left: 8px;
+    padding: 4px 8px;
+    border: 1px solid #4facfe;
+    border-radius: 4px;
+}
+#update-banner.hidden {
+    display: none;
 }

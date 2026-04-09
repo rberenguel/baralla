@@ -1,6 +1,11 @@
 # Club Fight
 
 ## Description
+| | |
+|---|---|
+| Author  | [D. Teuber](https://boardgamegeek.com/boardgamedesigner/137556/d-teuber)  |
+| Best 1 Player Game, 2023 Traditional Deck Game Design Contest  | [BGG](https://boardgamegeek.com/boardgame/410624/club-fight)  |
+
 
 ### Setup & Goal
 * **Decks:** Deal a 3x3 grid from a standard deck. Keep all clubs in a separate draw pile for your hand (draw up to 4). Add 1 Joker for Easy, or 2 for Hard.
@@ -20,14 +25,17 @@
 * **Run (Blocked by Hearts):** Discard a club to clear cards that create a consecutive sequence with it. Suits don't matter; King does not loop back to Ace.
 
 ## Setup
+
+- multicolor
 - placeholder: (-33, -3) (-28, -3) (-23, -3) (-18, -3) (-7, -8) (-2, -8) (3, -8) (-7, -1) (-2, -1) (3, -1) (-7, 6) (-2, 6) (3, 6)
 
 ## Deck
+
 - split clubs clubs
 - move clubs (-25, -11)
 - move clubs (-38, -3)
 - move (0, -18)
-- shuffle
 - joker
+- shuffle
 - shuffle clubs
 - move (-2, -16)

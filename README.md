@@ -1,10 +1,10 @@
 # Baralla
 
-A card sandbox — drag, stack, fan, shuffle, and flip a standard 52-card deck on a virtual felt table. Supports pinch-to-zoom and pan.
+A card sandbox — drag, stack, fan, shuffle, and flip a standard 52-card deck on a virtual felt table. Supports pinch-to-zoom and pan. "Baralla" is Catalan for "deck".
 
 ## Setup Language
 
-Baralla uses a lightweight markdown dialect to describe and share game setups. Setups can be recorded live (the app watches what you do and generates the text) or written by hand.
+Baralla uses a lightweight markdown dialect to describe and share game setups. Setups can be recorded live or written by hand.
 
 ### Format
 
@@ -13,19 +13,19 @@ Baralla uses a lightweight markdown dialect to describe and share game setups. S
 
 ## Description
 Optional description text.
-First line is used as the title if no explicit # title is present.
 
 ## Setup
-- placeholder: (x, y) (x, y) ...   // one or more placeholder card areas
-- counter: (x, y) ...               // one or more life/point counters
+- placeholder: (x, y) ...   // one or more placeholder card areas
+- counter: (x, y) ...       // one or more life/point counters
+- multicolor                // enable 4-color suit mode
 
 ## Deck
-- shuffle                           // shuffle main deck
-- split clubs clubs                 // split clubs out into a new stack named "clubs"
-- move clubs (-5, 3)                // move the "clubs" stack to position
-- shuffle clubs                     // shuffle the "clubs" stack
-- move (-2, -1)                     // move the main deck (no name = main deck)
-- flip                              // flip the main deck face-up
+- shuffle                   // shuffle main deck
+- remove jokers             // strip all jokers from the deck
+- remove hearts 11 12 1 13  // remove specific card values from the deck
+- split clubs clubs         // split clubs out into a new stack named "clubs"
+- move clubs (-5, 3)        // move the "clubs" stack to position
+- flip                      // flip the main deck face-up
 ```
 
 ### Coordinates
@@ -43,8 +43,9 @@ Example: `(-4, 2)` means 4 quarter-card-widths to the left and 2 down from cente
 
 | Line | Effect |
 |---|---|
-| `- placeholder: (x,y) ...` | Spawn dashed placeholder card areas at the given positions |
-| `- counter: (x,y) ...` | Spawn life/point counter widgets at the given positions |
+| `- placeholder: (x,y) [label] ...` | Spawn dashed placeholders. Optional `label` text follows coordinate. |
+| `- counter: (x,y) [value] ...` | Spawn life/point counters. Optional starting `value` follows coordinate. |
+| `- multicolor` | Enable 4-color suit mode for the session. |
 
 Multiple coordinates on one line spawn multiple items of that type.
 

@@ -40,6 +40,8 @@ class App {
         this.recordingLog = [];
         this.recordingStacks = {}; // { main: Set<cardRef>, [id]: Set<cardRef> }
 
+        this.multicolor = false;
+
         this.initDeck();
         this.setupEvents();
         this.updateTransform();
@@ -60,7 +62,8 @@ class App {
                 let id = `card-${suit}-${rank}`;
 
                 let el = document.createElement('div');
-                el.className = `card face-down ${isRed ? 'red' : 'black'}`;
+                let suitClass = `suit-${SUIT_NAMES[suit]}`;
+                el.className = `card face-down ${isRed ? 'red' : 'black'} ${suitClass}`;
                 let icon = SUIT_ICONS[suit];
                 el.innerHTML = `
                     <div class="card-back"></div>
@@ -96,6 +99,45 @@ class App {
 
     updateTransform() {
         this.table.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoomLevel})`;
+    }
+
+    centerOnLayout() {
+        const GRID = 70 / 4;
+        const playArea = this.items.filter(i => i.type === 'card' || i.type === 'phantom');
+        const notes = this.items.filter(i => i.type === 'note');
+        
+        if (playArea.length === 0) return;
+
+        // Calculate bounding box and barycenter of play area
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        let sumX = 0, sumY = 0;
+        
+        playArea.forEach(i => {
+            minX = Math.min(minX, i.x);
+            maxX = Math.max(maxX, i.x);
+            minY = Math.min(minY, i.y);
+            maxY = Math.max(maxY, i.y);
+            sumX += i.x;
+            sumY += i.y;
+        });
+
+        const bx = sumX / playArea.length;
+        const by = sumY / playArea.length;
+
+        // Reposition notes to the right of the play area
+        // We place them at maxX + 10 units (or roughly 175px)
+        const noteX = maxX + (10 * GRID);
+        notes.forEach((note, idx) => {
+            note.x = noteX;
+            note.y = minY + (idx * 20); // Stack notes vertically if multiple
+        });
+
+        // Center camera on play area barycenter
+        this.panX = window.innerWidth / 2 - bx * this.zoomLevel;
+        this.panY = window.innerHeight / 2 - by * this.zoomLevel;
+        
+        this.applyItemTransforms();
+        this.updateTransform();
     }
 
     getStackAt(x, y) {
@@ -863,15 +905,30 @@ class App {
                 if (entry.type === 'note') {
                     const ta = entry._item.el.querySelector('.note-source');
                     resolved.text = ta ? ta.value : '';
+                } else if (entry.type === 'phantom') {
+                    resolved.type = 'placeholder';
+                    resolved.label = entry._item.label;
+                } else if (entry.type === 'counter') {
+                    const valEl = entry._item.el.querySelector('.val');
+                    resolved.val = valEl ? parseInt(valEl.innerText) : 20;
                 }
                 return resolved;
             }
             return entry;
         });
         this.recordingLog = [];
-        const markdown = serializeSetup('', resolvedLog);
+        const markdown = serializeSetup('', resolvedLog, this.multicolor);
         this.openSetupModal('save', markdown);
         if (navigator.vibrate) navigator.vibrate([20, 20]);
+    }
+
+    setMulticolor(enabled) {
+        this.multicolor = !!enabled;
+        if (this.multicolor) {
+            this.table.classList.add('multicolor-mode');
+        } else {
+            this.table.classList.remove('multicolor-mode');
+        }
     }
 
     checkUrlForGame() {

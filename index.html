@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Card Sandbox</title>
+    <title>Baralla</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="fonts/phosphor/phosphor.css">
 </head>
@@ -16,6 +18,10 @@
 </div>
 
 <div id="radial-menu"></div>
+
+<div id="update-banner" class="hidden">
+    Update available — <a href="#" id="update-link">reload</a>
+</div>
 
 <div id="setup-modal" class="setup-modal hidden">
   <div class="setup-modal-box">
@@ -48,5 +54,29 @@
 
 <script src="lib/marked.js"></script>
 <script type="module" src="app.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        if (!newWorker) return;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                                document.getElementById('update-banner').classList.remove('hidden');
+                            }
+                        });
+                    });
+                })
+                .catch(err => console.error('SW registration failed:', err));
+        });
+
+        document.getElementById('update-link').addEventListener('click', e => {
+            e.preventDefault();
+            window.location.reload();
+        });
+    }
+</script>
 </body>
 </html>

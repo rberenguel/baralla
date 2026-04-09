@@ -25,3 +25,7 @@ For single-card deal (the draw operation common to many games):
 - Emit `{ type: 'deal', count: N, src: srcId, dest: newId }`
 - Serialize as `- deal N {src} {dest}`
 - Parse and apply in `applySetup`
+
+## Adding text to placeholders in setup mode is not supported
+
+## Saving pip counts directly is not supported

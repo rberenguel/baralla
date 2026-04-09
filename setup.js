@@ -10,31 +10,33 @@ const NAME_TO_SUIT = { spades: '♠', hearts: '♥', clubs: '♣', diamonds: '�
 
 export function parseSetup(markdown) {
     const lines = markdown.split('\n');
-    let title = '';
     let section = null;
     const descLines = [];
     const tools = [];
     const deckOps = [];
+    const parsed = { title: '', description: '', tools, deckOps, multicolor: false };
 
     for (const rawLine of lines) {
         const line = rawLine.trim();
         if (!line) continue;
 
         if (line.startsWith('# ')) {
-            title = line.slice(2).trim();
+            parsed.title = line.slice(2).trim();
         } else if (line.startsWith('## ')) {
             section = line.slice(3).trim().toLowerCase();
         } else if (section === 'description') {
             descLines.push(line);
         } else if (section === 'setup') {
             if (line.startsWith('- placeholder:')) {
-                parseCoords(line.slice(14)).forEach(c =>
-                    tools.push({ type: 'placeholder', x: c.x, y: c.y })
+                parseToolsWithData(line.slice(14)).forEach(c =>
+                    tools.push({ type: 'placeholder', x: c.x, y: c.y, label: c.data })
                 );
             } else if (line.startsWith('- counter:')) {
-                parseCoords(line.slice(10)).forEach(c =>
-                    tools.push({ type: 'counter', x: c.x, y: c.y })
+                parseToolsWithData(line.slice(10)).forEach(c =>
+                    tools.push({ type: 'counter', x: c.x, y: c.y, val: c.data ? parseInt(c.data) : null })
                 );
+            } else if (line.startsWith('- multicolor')) {
+                parsed.multicolor = true;
             }
         } else if (section === 'deck') {
             if (line.startsWith('- shuffle')) {
@@ -71,18 +73,41 @@ export function parseSetup(markdown) {
                 // "- joker" or "- joker {id}"
                 const rest = line.slice(7).trim();
                 deckOps.push({ op: 'joker', id: rest || null });
+            } else if (line.startsWith('- remove ')) {
+                // "- remove jokers" or "- remove {suit} {rank}..."
+                const parts = line.slice(9).trim().split(/\s+/);
+                const type = parts[0];
+                if (type === 'jokers') {
+                    deckOps.push({ op: 'remove', type: 'jokers' });
+                } else if (NAME_TO_SUIT[type]) {
+                    deckOps.push({ op: 'remove', type: 'suit', suit: NAME_TO_SUIT[type], ranks: parts.slice(1) });
+                }
             }
         }
     }
 
     // If no explicit # title, use first description line as title
     let description = descLines.join('\n');
-    if (!title && descLines.length > 0) {
-        title = descLines[0];
+    if (!parsed.title && descLines.length > 0) {
+        parsed.title = descLines[0];
         description = descLines.slice(1).join('\n').trim();
     }
+    parsed.description = description;
 
-    return { title, description, tools, deckOps };
+    return parsed;
+}
+
+function parseToolsWithData(str) {
+    const results = [];
+    const re = /\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)(?:\s+([^()]+))?/g;
+    for (const m of str.matchAll(re)) {
+        results.push({
+            x: parseFloat(m[1]) * GRID,
+            y: parseFloat(m[2]) * GRID,
+            data: m[3] ? m[3].trim() : null
+        });
+    }
+    return results;
 }
 
 function parseCoords(str) {
@@ -98,7 +123,7 @@ function parseCoords(str) {
 
 // --- SERIALIZER ---
 
-export function serializeSetup(title, log) {
+export function serializeSetup(title, log, multicolor = false) {
     const lines = [];
 
     lines.push(`# ${title || 'Untitled'}`, '');
@@ -117,12 +142,21 @@ export function serializeSetup(title, log) {
 
     lines.push('## Setup');
     if (placeholders.length > 0) {
-        const coords = placeholders.map(e => `(${toUnit(e.x)}, ${toUnit(e.y)})`).join(' ');
+        const coords = placeholders.map(e => {
+            const c = `(${toUnit(e.x)}, ${toUnit(e.y)})`;
+            return e.label ? `${c} ${e.label}` : c;
+        }).join(' ');
         lines.push(`- placeholder: ${coords}`);
     }
     if (counters.length > 0) {
-        const coords = counters.map(e => `(${toUnit(e.x)}, ${toUnit(e.y)})`).join(' ');
+        const coords = counters.map(e => {
+            const c = `(${toUnit(e.x)}, ${toUnit(e.y)})`;
+            return e.val !== undefined ? `${c} ${e.val}` : c;
+        }).join(' ');
         lines.push(`- counter: ${coords}`);
+    }
+    if (multicolor) {
+        lines.push('- multicolor');
     }
 
     // Deck section — ordered ops
@@ -156,6 +190,9 @@ function toUnit(px) {
 // --- APPLY ---
 
 export function applySetup(app, parsed) {
+    // Apply setup flags
+    app.setMulticolor(!!parsed.multicolor);
+
     // Stop any active recording first
     if (app.recording) {
         app.recording = false;
@@ -175,9 +212,9 @@ export function applySetup(app, parsed) {
     // Spawn tools
     for (const tool of parsed.tools) {
         if (tool.type === 'placeholder') {
-            _spawnPhantomAt(app, tool.x, tool.y);
+            _spawnPhantomAt(app, tool.x, tool.y, tool.label);
         } else if (tool.type === 'counter') {
-            _spawnCounterAt(app, tool.x, tool.y);
+            _spawnCounterAt(app, tool.x, tool.y, tool.val);
         }
     }
 
@@ -229,8 +266,32 @@ export function applySetup(app, parsed) {
                 targetCards.push(app.items[app.items.length - 1]);
                 break;
             }
+            case 'remove': {
+                const targetCards = stacks[targetId];
+                if (!targetCards) break;
+
+                let toRemove = [];
+                if (op.type === 'jokers') {
+                    toRemove = targetCards.filter(c => c.isJoker);
+                } else if (op.type === 'suit') {
+                    const norm = { '1': 'A', '11': 'J', '12': 'Q', '13': 'K' };
+                    const ranks = op.ranks.map(r => norm[r] || r);
+                    toRemove = targetCards.filter(c => c.suit === op.suit && ranks.includes(c.rank));
+                }
+
+                toRemove.forEach(c => {
+                    const idx = targetCards.indexOf(c);
+                    if (idx !== -1) targetCards.splice(idx, 1);
+                    c.el.remove();
+                    app.items = app.items.filter(i => i !== c);
+                });
+                break;
+            }
         }
     }
+
+    // Auto-center camera on the new layout
+    app.centerOnLayout();
 }
 
 // Shuffle without animation — for setup playback
@@ -243,33 +304,36 @@ function _shuffleImmediate(app, cards) {
 
 // --- SPAWN HELPERS ---
 
-function _spawnPhantomAt(app, x, y) {
+function _spawnPhantomAt(app, x, y, label) {
     const el = document.createElement('div');
     el.className = 'phantom-card';
+    if (label) {
+        el.innerHTML = `<div class="phantom-label">${label}</div>`;
+    }
     app.table.appendChild(el);
     const item = {
         id: `tool-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        type: 'phantom', el, x, y, rot: 0, z: 10,
+        type: 'phantom', el, x, y, rot: 0, z: 10, label
     };
     app.items.push(item);
     app.applyItemTransforms();
 }
 
-function _spawnCounterAt(app, x, y) {
+function _spawnCounterAt(app, x, y, val) {
     const el = document.createElement('div');
     el.className = 'tool-item counter-widget';
     el.innerHTML = `
         <div class="drag-handle">≡</div>
         <div style="display:flex;align-items:center;gap:8px;">
             <button class="counter-btn" onclick="this.nextElementSibling.innerText=parseInt(this.nextElementSibling.innerText)-1">-</button>
-            <span class="val">20</span>
+            <span class="val">${val !== null && val !== undefined ? val : 20}</span>
             <button class="counter-btn" onclick="this.previousElementSibling.innerText=parseInt(this.previousElementSibling.innerText)+1">+</button>
         </div>
     `;
     app.table.appendChild(el);
     const item = {
         id: `tool-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        type: 'counter', el, x, y, rot: 0, z: ++app.maxZ,
+        type: 'counter', el, x, y, rot: 0, z: ++app.maxZ, val
     };
     app.items.push(item);
     app.applyItemTransforms();
