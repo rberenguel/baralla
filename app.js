@@ -64,6 +64,7 @@ class App {
     this.recordingLog = [];
     this.recordingStacks = {}; // { main: Set<cardRef>, [id]: Set<cardRef> }
 
+    this.currentSetupMarkdown = null;
     this.multicolor = false;
 
     this.initDeck();
@@ -119,12 +120,25 @@ class App {
     this.actionGatherAll();
   }
 
+  resetToFreshDeck() {
+    // Wipe every item (cards, jokers, tools) from the DOM and internal state,
+    // then rebuild a clean standard 52-card deck.
+    this.items.forEach((item) => item.el.remove());
+    this.items = [];
+    this.maxZ = 100;
+    this.initDeck();
+  }
+
   applyItemTransforms() {
+    const noteCounter = Math.min(1, 2 / (this.zoomLevel + 1));
     this.items.forEach((item) => {
       if (!item._tempTransform) {
-        // Fix for reflexed tools: Only apply rotateY(180deg) to explicitly face-down cards
-        let rotY = item.type === "card" && !item.isFaceUp ? "180deg" : "0deg";
-        item.el.style.transform = `translate(${item.x}px, ${item.y}px) rotate(${item.rot}deg) rotateY(${rotY})`;
+        if (item.type === "note") {
+          item.el.style.transform = `translate(${item.x}px, ${item.y}px) rotate(${item.rot}deg) scale(${noteCounter.toFixed(4)})`;
+        } else {
+          let rotY = item.type === "card" && !item.isFaceUp ? "180deg" : "0deg";
+          item.el.style.transform = `translate(${item.x}px, ${item.y}px) rotate(${item.rot}deg) rotateY(${rotY})`;
+        }
       }
       item.el.style.zIndex = item.z;
     });
@@ -132,10 +146,23 @@ class App {
 
   updateTransform() {
     this.table.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoomLevel})`;
+    if (this._lastNoteZoom !== this.zoomLevel) {
+      this._lastNoteZoom = this.zoomLevel;
+      const noteCounter = Math.min(1, 2 / (this.zoomLevel + 1));
+      this.items.forEach((item) => {
+        if (item.type === "note" && !item._tempTransform) {
+          item.el.style.transform = `translate(${item.x}px, ${item.y}px) rotate(${item.rot}deg) scale(${noteCounter.toFixed(4)})`;
+        }
+      });
+    }
   }
 
   centerOnLayout() {
     const GRID = 70 / 4;
+    const CARD_W = 70;
+    const CARD_H = 100;
+    const PADDING = 0.82; // fraction of viewport to fill
+
     const playArea = this.items.filter(
       (i) => i.type === "card" || i.type === "phantom",
     );
@@ -143,37 +170,41 @@ class App {
 
     if (playArea.length === 0) return;
 
-    // Calculate bounding box and barycenter of play area
+    // Calculate bounding box of play area
     let minX = Infinity,
       maxX = -Infinity,
       minY = Infinity,
       maxY = -Infinity;
-    let sumX = 0,
-      sumY = 0;
 
     playArea.forEach((i) => {
       minX = Math.min(minX, i.x);
       maxX = Math.max(maxX, i.x);
       minY = Math.min(minY, i.y);
       maxY = Math.max(maxY, i.y);
-      sumX += i.x;
-      sumY += i.y;
     });
 
-    const bx = sumX / playArea.length;
-    const by = sumY / playArea.length;
+    // Include card dimensions so the full card extent is considered
+    const layoutW = maxX - minX + CARD_W;
+    const layoutH = maxY - minY + CARD_H;
 
-    // Reposition notes to the right of the play area
-    // We place them at maxX + 10 units (or roughly 175px)
-    const noteX = maxX + 10 * GRID;
+    // Fit to viewport — clamp so we never zoom in past 2× or out past 0.3×
+    const zoomX = (window.innerWidth * PADDING) / layoutW;
+    const zoomY = (window.innerHeight * PADDING) / layoutH;
+    this.zoomLevel = Math.min(Math.max(Math.min(zoomX, zoomY), 0.3), 2);
+
+    // Reposition notes centered above the top card row
+    const NOTE_W = 450;
+    const noteCenterX = (minX + maxX + CARD_W) / 2;
     notes.forEach((note, idx) => {
-      note.x = noteX;
-      note.y = minY + idx * 20; // Stack notes vertically if multiple
+      note.x = noteCenterX - NOTE_W / 2;
+      note.y = minY - 36 - idx * 28; // stack upward if multiple, 28px per collapsed bar
     });
 
-    // Center camera on play area barycenter
-    this.panX = window.innerWidth / 2 - bx * this.zoomLevel;
-    this.panY = window.innerHeight / 2 - by * this.zoomLevel;
+    // Center camera on geometric center of the bounding box
+    const cx = (minX + maxX) / 2 + CARD_W / 2;
+    const cy = (minY + maxY) / 2 + CARD_H / 2;
+    this.panX = window.innerWidth / 2 - cx * this.zoomLevel;
+    this.panY = window.innerHeight / 2 - cy * this.zoomLevel;
 
     this.applyItemTransforms();
     this.updateTransform();
@@ -206,6 +237,7 @@ class App {
   }
 
   onWheel(e) {
+    if (!this._setupModal.classList.contains("hidden")) return;
     e.preventDefault();
     const delta = -e.deltaY;
     const factor = Math.pow(1.1, delta / 100);
@@ -282,6 +314,9 @@ class App {
               c._offY = c.y - local.y;
             });
             if (navigator.vibrate) navigator.vibrate(50);
+          } else if (!this.hasMoved) {
+            this.dragMode = "card-menu-wait";
+            if (navigator.vibrate) navigator.vibrate(50);
           }
         }, 400);
       } else if (
@@ -329,6 +364,7 @@ class App {
         // Revert to dragging if we started moving after long press triggered but before releasing
         if (this.dragMode === "table-menu-wait") this.dragMode = "pan";
         if (this.dragMode === "tool-menu-wait") this.dragMode = "item";
+        if (this.dragMode === "card-menu-wait") this.dragMode = "item";
       }
     }
 
@@ -446,9 +482,18 @@ class App {
     this.currentIntent = intent;
     this.intentTarget = intentTarget;
 
+    // For the bottom indicator, show it on the visually top card of the target
+    // stack, not just whichever card the distance check happened to hit first
+    // (items are in insertion order, not z-order).
+    let indicatorCard = null;
+    if (intent === "bottom" && intentTarget) {
+      const stack = this.getStackAt(intentTarget.x, intentTarget.y);
+      indicatorCard = stack[stack.length - 1]; // getStackAt sorts ascending by z
+    }
+
     this.items.forEach((item) => {
       if (item.type === "card") {
-        if (item === intentTarget && intent === "bottom") {
+        if (item === indicatorCard) {
           item.el.classList.add("preview-bottom");
         } else {
           item.el.classList.remove("preview-bottom");
@@ -474,6 +519,16 @@ class App {
     } else if (this.dragMode === "tool-menu-wait" && !this.hasMoved) {
       this.showRadialMenu(e.clientX, e.clientY, "tool", this.dragTargets[0]);
       openedMenu = true;
+    } else if (this.dragMode === "card-menu-wait" && !this.hasMoved) {
+      this.showRadialMenu(e.clientX, e.clientY, "card", this.dragTargets[0]);
+      openedMenu = true;
+      this.dragTargets.forEach((item) => {
+        item.el.classList.remove("dragging");
+        delete item._offX;
+        delete item._offY;
+      });
+      this.dragTargets = [];
+      this.applyItemTransforms();
     } else if (
       this.stackLifted &&
       !this.hasMoved &&
@@ -650,7 +705,7 @@ class App {
           icon: "ph-bounding-box",
           handler: () => this.addPhantom(clientX, clientY),
         },
-        { icon: "ph-folder-open", handler: () => this.openSetupModal("load") },
+        { icon: "ph-folder-open", handler: () => this.openSetupModal("load", this.currentSetupMarkdown || "") },
         {
           icon: this.recording ? "ph-stop-circle" : "ph-record",
           class: this.recording ? "recording" : "",
@@ -665,6 +720,18 @@ class App {
           handler: () => this.actionDeleteTool(this.radialMenuData),
         },
       ];
+    } else if (type === "card") {
+      const card = targetData;
+      actions = [
+        {
+          icon: "ph-minus-circle",
+          handler: () => this.actionRemoveCard(this.radialMenuData),
+        },
+        {
+          label: card.isJoker ? "JKR" : card.rank,
+          handler: () => this.actionCollectRank(this.radialMenuData),
+        },
+      ];
     }
 
     const radius = actions.length <= 1 ? 0 : actions.length > 4 ? 70 : 60;
@@ -672,7 +739,9 @@ class App {
     actions.forEach((act, i) => {
       const el = document.createElement("div");
       el.className = "radial-item " + (act.class || "");
-      el.innerHTML = `<i class="ph-light ${act.icon}"></i>`;
+      el.innerHTML = act.label
+        ? `<span class="radial-label">${act.label}</span>`
+        : `<i class="ph-light ${act.icon}"></i>`;
 
       let angle = 0;
       if (actions.length > 1) {
@@ -713,6 +782,40 @@ class App {
     let targetCard = stack[stack.length - 1]; // the top-most card
     let minZ = stack[0].z;
     targetCard.z = minZ - 1;
+    this.applyItemTransforms();
+  }
+
+  actionRemoveCard(card) {
+    if (!card) return;
+    if (this.recording) {
+      this.recordingLog.push({ type: "remove-card", suit: card.suit, rank: card.rank });
+      for (const sset of Object.values(this.recordingStacks)) {
+        sset.delete(card);
+      }
+    }
+    card.el.remove();
+    this.items = this.items.filter((i) => i !== card);
+  }
+
+  actionCollectRank(card) {
+    if (!card) return;
+    const rank = card.rank;
+    const allSameRank = this.items.filter((i) => i.type === "card" && i.rank === rank);
+    if (allSameRank.length === 0) return;
+    allSameRank.forEach((c) => {
+      c.x = card.x;
+      c.y = card.y;
+      c.z = ++this.maxZ;
+    });
+    if (navigator.vibrate) navigator.vibrate(30);
+    if (this.recording) {
+      const id = this._autoStackId(`rank-${rank}`);
+      this.recordingStacks[id] = new Set(allSameRank);
+      for (const [sid, sset] of Object.entries(this.recordingStacks)) {
+        if (sid !== id) allSameRank.forEach((c) => sset.delete(c));
+      }
+      this.recordingLog.push({ type: "collect", rank, id });
+    }
     this.applyItemTransforms();
   }
 
@@ -900,7 +1003,7 @@ class App {
     }
   }
 
-  _makeNoteWidget(initialText, label = "Note") {
+  _makeNoteWidget(initialText, label = "Note", collapsed = false) {
     const el = document.createElement("div");
     el.className = "tool-item note-widget";
 
@@ -909,12 +1012,14 @@ class App {
     handle.className = "drag-handle";
 
     const handleLabel = document.createElement("span");
+    handleLabel.className = "note-title";
     handleLabel.textContent = `≡ ${label}`;
 
     const collapseBtn = document.createElement("button");
     collapseBtn.className = "note-collapse-btn";
     collapseBtn.title = "Collapse / expand";
-    collapseBtn.textContent = "▾"; // solid down triangle
+    collapseBtn.textContent = collapsed ? "▸" : "▾";
+    if (collapsed) el.classList.add("note-collapsed");
     collapseBtn.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
       el.classList.toggle("note-collapsed");
@@ -1087,6 +1192,7 @@ class App {
 
   loadSetup(markdown) {
     if (!markdown.trim()) return;
+    this.currentSetupMarkdown = markdown;
     applySetup(this, parseSetup(markdown));
   }
 

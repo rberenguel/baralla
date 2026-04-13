@@ -1,7 +1,7 @@
 {
   "name": "Baralla",
   "short_name": "Baralla",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Card sandbox and setup manager",
   "start_url": "./index.html",
   "display": "standalone",

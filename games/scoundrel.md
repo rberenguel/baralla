@@ -7,6 +7,7 @@
 | Authors | [Zach Gage](https://boardgamegeek.com/boardgamedesigner/60260/zach-gage) & [Kurt Bieg](https://boardgamegeek.com/boardgamedesigner/12161/kurt-bieg) |
 |         | [Official Website](http://stfj.net/art/2011/Scoundrel.pdf)                                                                                          |
 |         | [BGG](https://boardgamegeek.com/boardgame/191095/scoundrel)                                                                                         |
+| <i class="ph-light ph-youtube-logo"></i>|[YT with Totally Tabled](https://www.youtube.com/watch?v=hki10JUz8wg)|
 
 ### Setup & Goal
 

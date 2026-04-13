@@ -6,6 +6,7 @@
 | ------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Author                                                        | [D. Teuber](https://boardgamegeek.com/boardgamedesigner/137556/d-teuber) |
 | Best 1 Player Game, 2023 Traditional Deck Game Design Contest | [BGG](https://boardgamegeek.com/boardgame/410624/club-fight)             |
+| <i class="ph-light ph-youtube-logo"></i>|[YT with Totally Tabled](https://www.youtube.com/watch?v=S3c0-k6owTo)|
 
 ### Setup & Goal
 

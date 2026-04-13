@@ -1,4 +1,4 @@
-const CACHE_NAME = "baralla-v0.1.0";
+const CACHE_NAME = "baralla-v0.2.0";
 const CACHE_FILES = [
   "./README.md",
   "./app.js",

@@ -62,20 +62,23 @@ body {
   cursor: grabbing;
 }
 
-/* Slide to Bottom Affordance */
-.card.preview-bottom::after {
+/* Slide to Bottom Affordance
+   Pseudo-elements go on .card-face and .card-back rather than on .card itself,
+   because .card uses preserve-3d and pseudo-elements there flip with the card.
+   .card-face/.card-back already have backface-visibility:hidden, so only the
+   currently visible face shows the indicator — no extra logic needed.
+   The .card-back variant needs scaleX(-1) to undo the coordinate mirror from
+   its own rotateY(180deg). */
+.card.preview-bottom .card-face::after,
+.card.preview-bottom .card-back::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   border-radius: 6px;
-  z-index: 10;
   pointer-events: none;
 }
-.card.preview-bottom::before {
+.card.preview-bottom .card-face::before {
   content: "⇩";
   position: absolute;
   top: 50%;
@@ -83,7 +86,17 @@ body {
   transform: translate(-50%, -50%);
   font-size: 40px;
   color: white;
-  z-index: 11;
+  pointer-events: none;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+}
+.card.preview-bottom .card-back::before {
+  content: "⇩";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scaleX(-1);
+  font-size: 40px;
+  color: white;
   pointer-events: none;
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
 }
@@ -220,6 +233,13 @@ body {
 .radial-item.black-suit {
   color: #2b2d42;
 }
+.radial-label {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #2b2d42;
+  pointer-events: none;
+}
 
 /* --- COUNTERS & NOTES --- */
 .tool-item {
@@ -296,6 +316,10 @@ body {
 .note-widget {
   width: 450px;
   max-width: 90vw;
+  transform-origin: 0 0;
+}
+.note-widget:not(.note-collapsed) {
+  z-index: 999999 !important;
 }
 .note-collapsed .note-preview,
 .note-collapsed .note-source {
@@ -322,6 +346,12 @@ body {
   justify-content: space-between;
   padding: 4px 8px;
   background: #f0f0f0;
+}
+.note-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #2b2d42;
 }
 .collapsible-heading {
   cursor: pointer;

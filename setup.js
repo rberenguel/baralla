@@ -107,6 +107,12 @@ export function parseSetup(markdown) {
             ranks: parts.slice(1),
           });
         }
+      } else if (line.startsWith("- collect ")) {
+        // "- collect {rank} {deckname}"
+        const parts = line.slice(10).trim().split(/\s+/);
+        const rank = parts[0];
+        const deckname = parts[1] || `rank-${rank}`;
+        deckOps.push({ op: "collect", rank, deckname });
       }
     }
   }
@@ -195,7 +201,9 @@ export function serializeSetup(title, log, multicolor = false) {
       e.type === "flip" ||
       e.type === "split" ||
       e.type === "move" ||
-      e.type === "joker",
+      e.type === "joker" ||
+      e.type === "collect" ||
+      e.type === "remove-card",
   );
   lines.push("", "## Deck");
   for (const op of deckOps) {
@@ -210,6 +218,12 @@ export function serializeSetup(title, log, multicolor = false) {
       lines.push(op.id ? `- move ${op.id} ${coord}` : `- move ${coord}`);
     } else if (op.type === "joker") {
       lines.push(op.id ? `- joker ${op.id}` : "- joker");
+    } else if (op.type === "collect") {
+      lines.push(`- collect ${op.rank} ${op.id}`);
+    } else if (op.type === "remove-card") {
+      const suitName = SUIT_TO_NAME[op.suit] || op.suit;
+      const rankNum = { A: "1", J: "11", Q: "12", K: "13" }[op.rank] || op.rank;
+      lines.push(`- remove ${suitName} ${rankNum}`);
     }
   }
 
@@ -233,14 +247,9 @@ export function applySetup(app, parsed) {
     app.recordingStacks = {};
   }
 
-  // Reset board: pan/zoom to center, all cards face-down stacked
-  app.actionGatherAll();
-
-  // Remove all non-card items from DOM and items array
-  app.items
-    .filter((i) => i.type !== "card")
-    .forEach((item) => item.el.remove());
-  app.items = app.items.filter((i) => i.type === "card");
+  // Full deck reset: removes all items (cards, jokers, tools from any previous game)
+  // and reinstates a clean standard 52-card deck.
+  app.resetToFreshDeck();
 
   // Spawn tools
   for (const tool of parsed.tools) {
@@ -253,7 +262,8 @@ export function applySetup(app, parsed) {
 
   // Spawn description note (top-left area of table)
   if (parsed.description) {
-    _spawnNoteAt(app, parsed.description, 5, -3, parsed.title || "Note");
+    const noteLabel = parsed.title ? `${parsed.title} Rules` : "Rules";
+    _spawnNoteAt(app, parsed.description, 5, -3, noteLabel, true);
   }
 
   // Apply deck ops — maintain a stacks registry: { main: cardArray, [id]: cardArray }
@@ -300,6 +310,30 @@ export function applySetup(app, parsed) {
         app.addJokerToStack(targetCards);
         // Keep the local stacks array in sync
         targetCards.push(app.items[app.items.length - 1]);
+        break;
+      }
+      case "collect": {
+        // Take all cards of a given rank from the main deck into a named sub-deck
+        const src = stacks.main;
+        if (!src) break;
+        const matching = src.filter((c) => c.rank === op.rank);
+        if (matching.length === 0) break;
+
+        if (!stacks[op.deckname]) {
+          stacks[op.deckname] = [...matching];
+        } else {
+          stacks[op.deckname].push(...matching);
+        }
+        stacks.main = src.filter((c) => c.rank !== op.rank);
+
+        // Stack them at the first card's current position
+        const refCard = stacks[op.deckname][0];
+        matching.forEach((c) => {
+          c.x = app.snap(refCard.x);
+          c.y = app.snap(refCard.y);
+          c.z = ++app.maxZ;
+        });
+        app.applyItemTransforms();
         break;
       }
       case "remove": {
@@ -392,8 +426,8 @@ function _spawnCounterAt(app, x, y, val) {
   app.applyItemTransforms();
 }
 
-function _spawnNoteAt(app, text, gridX, gridY, label = "Note") {
-  const el = app._makeNoteWidget(text, label);
+function _spawnNoteAt(app, text, gridX, gridY, label = "Note", collapsed = false) {
+  const el = app._makeNoteWidget(text, label, collapsed);
   app.table.appendChild(el);
 
   const item = {
